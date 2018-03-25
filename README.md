@@ -13,7 +13,7 @@
 | -a, --assign_current | [ID] | To change current ID (Usually a 16-digits number) |
 | -o, --assign_default | [ID] | To change the default ID |
 | -p, --package | [PKG_NAME] | To specify application by package name, **THIS FLAG IS NECESSARY** |
-| -i, --inplace |  | Mdify ID directly (Print to stdout if not set, **USE THIS OPTION CAREFULLY**) |
+| -i, --inplace |  | Modify ID directly (Print to stdout if not set, **USE THIS OPTION CAREFULLY**) |
 | -f, --file | [FILE_PATH] | To Specify which file to be processed, don't set to use default |
 | -h, --help |  | Help information is currently NOT available |
 
