@@ -20,6 +20,8 @@
 ## Notice
 * Root privilege is needed.
 * A **REBOOT** is required for changes to go into effect.
+* A valid (uncorrupted) setting is expected, otherwise the behavior will be undefined.
+* Always preview before assigning inplacely, or make backups.
 * Querying both current and default ID at the same time is NOT possible.
 * To Assign the current and default ID at the same time, set the both flags.
 * It is NOT possible to query and assign at the same time.
