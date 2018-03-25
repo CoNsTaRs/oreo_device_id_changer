@@ -30,7 +30,7 @@
 `dvcid -q -p com.android.example`
 * To change the current ID of the package 'com.android.example' to '0000000000000000' directly  
 `dvcid -i -a 0000000000000000 -p com.android.example`
-* To query the default ID of the package 'com.android.example' from the file 'settings-ssaid.xml'  
+* To query the current ID of the package 'com.android.example' from the file 'settings-ssaid.xml'  
 `dvcid -q -p com.android.example -f settings-ssaid.xml`
 * To set both ID of the package 'com.android.example' at the same time to 1234567890123456 and 0000000000000000  
 `dvcid -a 1234567890123456 -o 0000000000000000 -p com.android.example`
