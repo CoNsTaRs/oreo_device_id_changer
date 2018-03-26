@@ -12,7 +12,7 @@
 | -r, --query_default |  | To query the default ID (The new ID decided by Oreo) |
 | -a, --assign_current | [ID] | To change current ID (Usually a 16-digits number) |
 | -o, --assign_default | [ID] | To change the default ID |
-| -b, --backup | [FILE_PATH]* | To make a backup, output to the file if specified, else print to stdout |
+| -b, --backup | [FILE_PATH] | To make a backup, output to the file specified |
 | -p, --package | [PKG_NAME] | To specify application by package name, **THIS FLAG IS NECESSARY** |
 | -i, --inplace |  | Modify ID directly (Print to stdout if not set, **USE THIS OPTION CAREFULLY**) |
 | -y, --force |  | To skip security checks |
