@@ -36,5 +36,5 @@
 `dvcid -q -p com.android.example -f settings-ssaid.xml`
 * To set both ID of the package 'com.android.example' at the same time to '1234567890123456' and '0000000000000000'  
 `dvcid -a 1234567890123456 -o 0000000000000000 -p com.android.example`
-* To save current settings to file 'ssaid_backup.xml'
+* To save current settings to file 'ssaid_backup.xml'  
 `dvcid -b ssaid_backup.xml`
