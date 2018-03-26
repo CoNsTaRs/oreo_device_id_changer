@@ -380,11 +380,13 @@ main(int argc, char* argv[])
       else
         { write_back(orign_xml_backup, opts.backup_file); }
     }
-
-  if (opts.inplace)
-    { write_back(::get_final(), opts.xml_file); }
-  else
-    { print_out(::get_final()); }
+      if (opts.assign_current || opts.assign_default)
+        {
+      if (opts.inplace)
+        { write_back(::get_final(), opts.xml_file); }
+      else
+        { print_out(::get_final()); }
+    }
 
   return 0;
 }
