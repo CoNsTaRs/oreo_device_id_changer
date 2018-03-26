@@ -6,65 +6,10 @@
 #include <cstdlib>
 #include <getopt.h>
 
-struct ParsedLine
-{
-  std::string id;
-  std::string name;
-  std::string value;
-  std::string package;
-  std::string default_value;
-  std::string default_sys_set;
-  std::string tag;
+#include "dvcid.hpp"
 
-  bool
-  crrupt() const
-  {
-    return (
-      id.empty() &&
-      name.empty() &&
-      value.empty() &&
-      package.empty() &&
-      default_value.empty() &&
-      default_sys_set.empty() &&
-      tag.empty());
-  }
-};
-
-struct Options
-{
-  Options (const std::string& pkg_name = ""
-         , const std::string& dft_id = ""
-         , const std::string& crt_id = ""
-         , const std::string& xml_pth= "/data/system/users/0/settings_ssaid.xml"
-         , bool to_help = false
-         , bool to_as_dft = false
-         , bool to_as_crt = false
-         , bool to_qr_dft = false
-         , bool to_qr_crt = false
-         , bool do_inplace = false)
-    : package_name(pkg_name), default_id(dft_id), current_id(crt_id)
-    , xml_file(xml_pth), help(to_help), assign_default(to_as_dft)
-    , assign_current(to_as_crt), query_default(to_qr_dft)
-    , query_current(to_qr_crt), inplace(do_inplace)
-  {}
-
-  std::string
-    package_name,
-    default_id,
-    current_id,
-    xml_file;
-
-  bool
-    help,
-    assign_default,
-    assign_current,
-    query_default,
-    query_current,
-    inplace;
-};
-
-static std::deque<ParsedLine> parsed_XML;
-static std::deque<std::string> orign_XML;
+static std::deque<ParsedLine> parsed_XML_SG_;
+static std::deque<std::string> orign_XML_SG_;
 
 namespace {
 
@@ -107,81 +52,131 @@ namespace {
 
     return parsed_value;
   }
-}
 
-ParsedLine
-parse_line(const std::string& line)
-{
-  std::map<std::string, std::string> records;
+  ParsedLine
+  parse_line(const std::string& line)
+  {
+    std::map<std::string, std::string> records;
 
-  for (std::size_t i = 0; i < line.length(); ++i)
-    {
-      if (line[i] == '=')
-        {
-          std::string key = ::parse_key(i, line);
-          std::string value = ::parse_value(i, line);
-          records[key] = value;
-        }
-    }
+    for (std::size_t i = 0; i < line.length(); ++i)
+      {
+        if (line[i] == '=')
+          {
+            std::string key = ::parse_key(i, line);
+            std::string value = ::parse_value(i, line);
+            records[key] = value;
+          }
+      }
 
-  ParsedLine parsed_line =
-    {
-      .id              = records["id"],
-      .name            = records["name"],
-      .value           = records["value"],
-      .package         = records["package"],
-      .default_value   = records["defaultValue"],
-      .default_sys_set = records["defaultSysSet"],
-      .tag             = records["tag"]
-    };
+    return ParsedLine
+      (
+        records["id"], records["name"], records["value"], records["package"],
+        records["defaultValue"], records["defaultSysSet"], records["tag"]
+      );
+  }
 
-  return parsed_line;
-}
+  std::string
+  rewrite_line(const ParsedLine& parsed_line)
+  {
+    return std::string()
+      .append("  <setting ")
+      .append("id=\"")              .append(parsed_line.id)
+      .append("\" name=\"")         .append(parsed_line.name)
+      .append("\" value=\"")        .append(parsed_line.value)
+      .append("\" package=\"")      .append(parsed_line.package)
+      .append("\" defaultValue=\"") .append(parsed_line.default_value)
+      .append("\" defaultSysSet=\"").append(parsed_line.default_sys_set)
+      .append("\" tag=\"")          .append(parsed_line.tag)
+      .append("\" />");
+  }
 
-std::string
-rewrite_line(const ParsedLine& parsed_line)
-{
-  return std::string("  <setting ")
-    .append("id=\"")              .append(parsed_line.id)
-    .append("\" name=\"")         .append(parsed_line.name)
-    .append("\" value=\"")        .append(parsed_line.value)
-    .append("\" package=\"")      .append(parsed_line.package)
-    .append("\" defaultValue=\"") .append(parsed_line.default_value)
-    .append("\" defaultSysSet=\"").append(parsed_line.default_sys_set)
-    .append("\" tag=\"")          .append(parsed_line.tag)
-    .append("\" />\n");
+  std::string
+  get_final(bool committed = true)
+  {
+    std::string final_copy;
+    for (std::size_t i = 0; i < orign_XML_SG_.size(); ++i)
+      {
+        final_copy.append
+          (
+            (parsed_XML_SG_[i].is_crrupted() || !committed) ?
+              orign_XML_SG_[i] : ::rewrite_line(parsed_XML_SG_[i])
+          )
+        .append("\n");
+      }
+    return final_copy;
+  }
+
+  bool
+  is_valid_device_id(const std::string& str)
+  {
+    if (str.length() != 16)
+      { return false; }
+    for (const auto& c : str)
+      {
+        if (static_cast<int>(c) < 48 || static_cast<int>(c) > 57)
+          { return false; }
+      }
+    return true;
+  }
+
+  bool
+  is_valid_userkey(const std::string& str)
+  {
+    if (str.length() != 64)
+      { return false; }
+    for (auto it = str.cbegin(); it != str.cend(); ++it)
+      {
+        if (
+              (static_cast<int>(*it) > 57 && static_cast<int>(*it) < 65) ||
+              (static_cast<int>(*it) < 48 || static_cast<int>(*it) > 90)
+           )
+          { return false; }
+      }
+    return true;
+  }
 }
 
 void
 parse_file(const std::string& xml_file)
 {
   std::ifstream input_stream(xml_file);
-  ParsedLine parsed_line;
+
+  if (input_stream.fail())
+    {
+      std::cerr << "cannot open input: " << xml_file << std::endl;
+      exit(66);
+    }
 
   for (std::string line; std::getline(input_stream, line); )
     {
-      parsed_line = parse_line(line);
-      parsed_XML.push_back(parsed_line);
-      orign_XML.push_back(line);
+      parsed_XML_SG_.push_back(::parse_line(line));
+      orign_XML_SG_.push_back(line);
     }
 }
 
 void
-write_back(const std::string& xml_file)
+write_back(std::string final_copy, const std::string& xml_file)
 {
   std::ofstream output_stream(xml_file);
 
-  for (std::size_t i = 0; i < orign_XML.size(); ++i)
+  if (output_stream.fail())
     {
-      output_stream <<
-        (parsed_XML[i].crrupt() ? orign_XML[i] : rewrite_line(parsed_XML[i]));
+      std::cerr << "can't create (user) output file: " << xml_file << std::endl;
+      exit(73);
     }
+  output_stream << final_copy;
+}
+
+void
+print_out(std::string final_copy)
+{
+  std::cout << final_copy;
 }
 
 std::string
 query(const std::string& package_name, const bool which)
 {
-  for (auto const& parsed_line : parsed_XML)
+  for (auto const& parsed_line : parsed_XML_SG_)
     {
       if (parsed_line.package == package_name)
         { return (which ? parsed_line.default_value : parsed_line.value); }
@@ -191,48 +186,80 @@ query(const std::string& package_name, const bool which)
 }
 
 void
-assign(const std::string& package_name
-     , const std::string& device_id
-     , const bool which)
+assign_safe_guard
+  (
+    const std::string& package_name,
+    const std::string& device_id
+  )
 {
-  for (auto& parsed_line : parsed_XML)
+  if (package_name == "android")
+    {
+      if (!::is_valid_userkey(device_id))
+        {
+          std::cerr
+            << "the designated ID is NOT a valid userkey: "
+            << package_name
+            << std::endl
+            << "use --force to perform anyway"
+            << std::endl;
+        }
+      std::cerr
+        << "changing ID of this package will cause system wide ID changes: "
+        << package_name
+        << std::endl
+        << "use --force to perform anyway"
+        << std::endl;
+      exit(1);
+    }
+  else if (!::is_valid_device_id(device_id))
+    {
+      std::cerr
+        << "the designated ID is NOT a 16-digit number: "
+        << device_id
+        << std::endl
+        << "use --force to perform anyway"
+        << std::endl;
+      exit(1);
+    }
+}
+
+void
+assign
+  (
+    const std::string& package_name,
+    const std::string& device_id,
+    const bool which
+  )
+{
+  
+
+  for (auto& parsed_line : parsed_XML_SG_)
     {
       if (parsed_line.package == package_name)
         {
-          if (which)
-            { parsed_line.default_value = device_id; }
-          else
-            { parsed_line.value = device_id; }
+          which ?
+            parsed_line.default_value = device_id : 
+            parsed_line.value = device_id;
         }
     }
 }
 
 void
-help_information()
+help_information(std::string exit_info = "", int error_code = 0)
 {
-  std::cout << "help information" << std::endl;
+  if (exit_info.length() > 0)
+    { std::cout << exit_info << error_code << std::endl << std::endl; }
+  std::cout << __HELP_INFO__;
+  exit(error_code);
 }
 
 Options
-get_options (int argc, char** argv)
+get_options (int& argc, char* argv[])
 {
-  static const option long_options [] =
-    {
-      {"help",           no_argument,       nullptr, 'h'},
-      {"assign_default", required_argument, nullptr, 'a'},
-      {"assign_current",     required_argument, nullptr, 'o'},
-      {"query_default",  no_argument,       nullptr, 'q'},
-      {"query_current",      no_argument,       nullptr, 'r'},
-      {"package",        required_argument, nullptr, 'p'},
-      {"file",           required_argument, nullptr, 'f'},
-      {"inplace",        no_argument,       nullptr, 'i'},
-      {nullptr, 0, nullptr, 0}
-    };
-
   int c;
   Options options;
 
-  while ((c = getopt_long(argc, argv, "ha:o:qrp:f:i", long_options, nullptr)) != -1)
+  while ((c = getopt_long(argc, argv, opts_SG_, long_opts_SG_, nullptr)) != -1)
     {
       switch (c)
       {
@@ -250,6 +277,10 @@ get_options (int argc, char** argv)
       case 'r':
         options.query_current = true;
         break;
+      case 'b':
+        options.backup = true;
+        options.backup_file = optarg;
+        break;
       case 'p':
         options.package_name = optarg;
         break;
@@ -259,12 +290,14 @@ get_options (int argc, char** argv)
       case 'i':
         options.inplace = true;
         break;
+      case 'y':
+        options.force = true;
+        break;
       case 'h':
         options.help = true;
         break;
       default:
-        std::cerr << "invalid option: " << static_cast<int>(c) << std::endl;
-        exit(128);
+        help_information("", 63);
       }
     }
   return options;
@@ -273,57 +306,85 @@ get_options (int argc, char** argv)
 int
 main(int argc, char* argv[])
 {
-  Options opt = get_options(argc, argv);
+  Options opts = get_options(argc, argv);
 
-  parse_file(opt.xml_file);
+  if (opts.help)
+    { help_information("", 0); }
 
-  if (opt.help ||
-      ((opt.assign_default || opt.assign_current) &&
-       (opt.query_default || opt.query_current)))
+  /* At least one action needs to be taken */
+  if (!(opts.query_default || opts.query_current || opts.assign_default ||
+        opts.assign_current ||opts.backup))
+    { help_information("invalid option combination: nothing to do: ", 64); }
+
+  /* Only one ID can be queried at a time */
+  if (opts.query_default && opts.query_current)
     {
-      help_information();
+      help_information
+        ("invalid option combination: querying more than one IDs: ", 64);
     }
-  else if (opt.assign_default || opt.assign_current)
+
+  /* Either backup or query can be taken */
+  if (opts.backup && (opts.query_default || opts.query_current))
+    { help_information("invalid option combination: ", 64); }
+
+  /* Action combination is safe here, option combination still needs to check */
+
+  parse_file(opts.xml_file);
+
+  /* Querying */
+  if (opts.query_current || opts.query_default)
     {
-      if (opt.assign_default)
-        { assign (opt.package_name, opt.default_id, true); }
-      if (opt.assign_current)
-        { assign (opt.package_name, opt.current_id, false); }
-      if (opt.inplace)
-        { write_back(opt.xml_file); }
+      if (opts.inplace)
+        { help_information("invalid option combination: ", 64); }
+
+      if (opts.package_name.length() == 0)
+        { help_information("package name not spefified: ", 64); }
+
+      std::string id = query(opts.package_name, opts.query_default);
+
+      if (id.length() != 0)
+        { std::cout << id << std::endl; }
+    }
+
+  /* Backing up */
+  std::string orign_xml_backup;
+  if (opts.backup)
+    { orign_xml_backup = ::get_final(false); }
+
+  /* Assigning */
+  if (opts.assign_current || opts.assign_default)
+    {
+      if (opts.package_name.length() == 0)
+        { help_information("package name not spefified: ", 64); }
+
+      if (opts.assign_default)
+        {
+          if (!opts.force)
+            { assign_safe_guard(opts.package_name, opts.default_id); }
+          assign(opts.package_name, opts.default_id, true);
+        }
+      if (opts.assign_current)
+        {
+          if (!opts.force)
+            { assign_safe_guard(opts.package_name, opts.current_id); }
+          assign(opts.package_name, opts.current_id, false);
+        }
+    }
+
+  /* Writing back */
+
+  if (opts.backup)
+    {
+      if (opts.backup_file.length() == 0)
+        { print_out(orign_xml_backup); }
       else
-        {
-          for (std::size_t i = 0; i < orign_XML.size(); ++i)
-            {
-              if (parsed_XML[i].crrupt())
-                { std::cout << orign_XML[i] << std::endl; }
-              else
-                { std::cout << rewrite_line(parsed_XML[i]) << std::endl; }
-            }
-        }
+        { write_back(orign_xml_backup, opts.backup_file); }
     }
-  else if (opt.query_default || opt.query_current)
-    {
-      if (opt.query_default == opt.query_current)
-        {
-          help_information();
-        }
-      else
-        {
-          std::string id;
-          if (opt.query_default)
-            { id = query(opt.package_name, true); }
-          else
-            { id = query(opt.package_name, false); }
-          if (id.length() != 0)
-            { std::cout << id << std::endl; }
-        }
-    }
+
+  if (opts.inplace)
+    { write_back(::get_final(), opts.xml_file); }
   else
-    {
-      help_information();
-    }
+    { print_out(::get_final()); }
 
   return 0;
 }
-
