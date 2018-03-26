@@ -155,7 +155,7 @@ parse_file(const std::string& xml_file)
 }
 
 void
-write_back(std::string final_copy, const std::string& xml_file)
+write_back(const std::string& final_copy, const std::string& xml_file)
 {
   std::ofstream output_stream(xml_file);
 
@@ -168,13 +168,32 @@ write_back(std::string final_copy, const std::string& xml_file)
 }
 
 void
-print_out(std::string final_copy)
+write_back(std::string&& final_copy, const std::string& xml_file)
+{
+  std::ofstream output_stream(xml_file);
+
+  if (output_stream.fail())
+    {
+      std::cerr << "can't create (user) output file: " << xml_file << std::endl;
+      exit(73);
+    }
+  output_stream << final_copy;
+}
+
+void
+print_out(const std::string& final_copy)
+{
+  std::cout << final_copy;
+}
+
+void
+print_out(std::string&& final_copy)
 {
   std::cout << final_copy;
 }
 
 std::string
-query(const std::string& package_name, const bool which)
+query(const std::string& package_name, const bool& which)
 {
   for (auto const& parsed_line : parsed_XML_SG_)
     {
@@ -228,11 +247,9 @@ assign
   (
     const std::string& package_name,
     const std::string& device_id,
-    const bool which
+    const bool&& which
   )
 {
-  
-
   for (auto& parsed_line : parsed_XML_SG_)
     {
       if (parsed_line.package == package_name)
@@ -245,7 +262,7 @@ assign
 }
 
 void
-help_information(std::string exit_info = "", int error_code = 0)
+help_information(std::string&& exit_info = "", int&& error_code = 0)
 {
   if (exit_info.length() > 0)
     { std::cout << exit_info << error_code << std::endl << std::endl; }
@@ -254,7 +271,7 @@ help_information(std::string exit_info = "", int error_code = 0)
 }
 
 Options
-get_options (int& argc, char* argv[])
+get_options (int& argc, char** (&argv))
 {
   int c;
   Options options;
