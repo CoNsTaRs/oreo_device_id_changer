@@ -108,7 +108,7 @@ FLAGS:\n\
     -a, --assign_current    [ID]              To change the current ID\n\
     -o, --assign_default    [ID]              To change the default ID\n\
     -p, --package           [PACKAGE_NAME]    To specify application by package name, THIS FLAG IS NECESSARY\n\
-    -b, --backup            [FILE_PATH]       To make a backup of current setting, output to specified file, else print to stdout\n\
+    -b, --backup            [FILE_PATH]       To make a backup of current setting, output to the file specified\n\
     -i, --inplace                             To modify ID directly (Print to stdout if not set, USE THIS OPTION CAREFULLY)\n\
     -y, --force                               To skip security checks\n\
     -f, --file              [FILE_PATH]       To specify which file to be processed\n\
