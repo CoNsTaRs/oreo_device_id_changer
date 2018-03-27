@@ -4,15 +4,18 @@
 
 **Android 8 (Oreo) has a major behavior change on how device ID is manipulated, this tool helps you Query / Modify the ID of applications on Oreo**
 
+# Flags changed, prior versions use different flags
+
 ## Usage
 
 | Options | Arguments | Description |
 | ------- | -------- | ----------- |
-| -q, --query_current |  | To query current ID (May be inherited from the previous Android version) |
-| -r, --query_default |  | To query the default ID (The new ID decided by Oreo) |
-| -a, --assign_current | [ID] | To change current ID (Usually a 16-digits number) |
-| -o, --assign_default | [ID] | To change the default ID |
+| -q, --query |  | To query current ID (May be inherited from the previous Android version) |
+| -Q, --query_default |  | To query the default ID (The new ID decided by Oreo) |
+| -a, --assign | [ID] | To change current ID (Usually a 16-digits number) |
+| -A, --assign_default | [ID] | To change the default ID |
 | -b, --backup | [FILE_PATH] | To make a backup, output to the file specified |
+| -r, --restore | [FILE_PATH] | To restore from a backup file |
 | -p, --package | [PKG_NAME] | To specify application by package name, **THIS FLAG IS NECESSARY** |
 | -i, --inplace |  | Modify ID directly (Print to stdout if not set, **USE THIS OPTION CAREFULLY**) |
 | -y, --force |  | To skip security checks |
@@ -29,12 +32,12 @@
 
 ## Examples
 * To query the current ID of the package 'com.android.example'  
-`dvcid -q -p com.android.example`
+`dvcid --query --package com.android.example`
 * To change the current ID of the package 'com.android.example' to '0000000000000000' directly  
-`dvcid -i -a 0000000000000000 -p com.android.example`
+`dvcid -i --assign 0000000000000000 --package com.android.example`
 * To query the current ID of the package 'com.android.example' from the file 'settings-ssaid.xml'  
-`dvcid -q -p com.android.example -f settings-ssaid.xml`
+`dvcid --query --package com.android.example --file settings-ssaid.xml`
 * To set both ID of the package 'com.android.example' at the same time to '1234567890123456' and '0000000000000000'  
-`dvcid -a 1234567890123456 -o 0000000000000000 -p com.android.example`
+`dvcid --assign 1234567890123456 -A 0000000000000000 --package com.android.example`
 * To save current settings to file 'ssaid_backup.xml'  
-`dvcid -b ssaid_backup.xml`
+`dvcid --backup ssaid_backup.xml`
