@@ -134,22 +134,22 @@ FLAGS:\n\
 \n\
 EXAMPLES:\n\
     To query the current ID of the package 'com.android.example':\n\
-    dvcid -q -p com.android.example\n\
+    dvcid --query --package com.android.example\n\
 \n\
     To change the current ID of the package 'com.android.example' to '0000000000000000' directly:\n\
-    dvcid -i -a 0000000000000000 -p com.android.example\n\
+    dvcid -i --assign 0000000000000000 --package com.android.example\n\
 \n\
     To query the current ID of the package 'com.android.example' from the file 'device_id':\n\
-    dvcid -q -p com.android.example -f device_id\n\
+    dvcid --query --package com.android.example --file device_id\n\
 \n\
     To set both ID of the package 'com.android.example' at the same time to '1234567890123456' and '0000000000000000':\n\
-    dvcid -a 1234567890123456 -A 0000000000000000 -p com.android.example\n\
+    dvcid --assign 1234567890123456 -A 0000000000000000 --package com.android.example\n\
 \n\
     To save current settings to file 'device_id.bak':\n\
-    dvcid -b ssaid_backup.xml\n\
+    dvcid --backup ssaid_backup.xml\n\
 \n\
     To restore IDs from a backup file 'device_id.bak'\n\
-    dvcid -r device_id.bak\n\
+    dvcid --restore device_id.bak\n\
 \n\
 NOTICE:\n\
     Root privilege is needed.\n\
@@ -165,9 +165,9 @@ NOTICE:\n\
 static const option long_opts_SG_ [] =
 {
   {"help",           no_argument,       nullptr, 'h'},
-  {"assign_current", required_argument, nullptr, 'a'},
+  {"assign",         required_argument, nullptr, 'a'},
   {"assign_default", required_argument, nullptr, 'A'},
-  {"query_current",  no_argument,       nullptr, 'q'},
+  {"query",          no_argument,       nullptr, 'q'},
   {"query_default",  no_argument,       nullptr, 'Q'},
   {"backup",         required_argument, nullptr, 'b'},
   {"restore",        required_argument, nullptr, 'r'},
