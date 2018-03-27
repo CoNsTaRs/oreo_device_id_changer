@@ -8,8 +8,111 @@
 
 #include "dvcid.hpp"
 
-static std::deque<ParsedLine> parsed_XML_SG_;
-static std::deque<std::string> orign_XML_SG_;
+namespace {
+
+  static std::deque<ParsedLine> parsed_XML_SG_;
+  static std::deque<std::string> orign_XML_SG_;
+
+}
+
+int
+main(int argc, char* argv[])
+{
+  Options opts = get_options(argc, argv);
+
+  if (opts.help)
+    { help_information("", 0); }
+
+  /* At least one action needs to be taken */
+  if (!(opts.query_default || opts.query_current || opts.assign_default ||
+        opts.assign_current || opts.backup || opts.restore))
+    { help_information("invalid option combination: nothing to do: ", 64); }
+
+  /* Only one ID can be queried at a time */
+  if (opts.query_default && opts.query_current)
+    {
+      help_information
+        ("invalid option combination: querying more than one IDs: ", 64);
+    }
+
+  /* Backup, restore cannot be performed with query */
+  if (
+      (opts.backup || opts.restore) &&
+      (opts.query_default || opts.query_current)
+     )
+    { help_information("invalid option combination: ", 64); }
+
+  /* Cannot restore while assigning */
+  if (opts.restore && (opts.assign_current || opts.assign_default))
+    { help_information("invalid option combination: ", 64); }
+
+  /* Cannot query and assign at one time */
+  if (
+      (opts.query_current || opts.query_default) &&
+      (opts.assign_current || opts.assign_default)
+     )
+    { help_information("invalid option combination: ", 64); }
+
+  /* Action combination is safe here, option combination still needs to check */
+
+  /* Querying */
+  if (opts.query_current || opts.query_default)
+    {
+      parse_file(opts.xml_file);
+
+      if (opts.inplace)
+        { help_information("invalid option combination: ", 64); }
+
+      if (opts.package_name.length() == 0)
+        { help_information("package name not spefified: ", 64); }
+
+      std::string id = query(opts.package_name, opts.query_default);
+
+      if (id.length() != 0)
+        { std::cout << id << std::endl; }
+    }
+
+  /* Backing up */
+  if (opts.backup)
+    { copy_file(opts.xml_file, opts.backup_file); }
+
+  /* Assigning */
+  if (opts.assign_current || opts.assign_default)
+    {
+      parse_file(opts.xml_file);
+
+      if (opts.package_name.length() == 0)
+        { help_information("package name not spefified: ", 64); }
+
+      if (opts.assign_default)
+        {
+          if (!opts.force)
+            { assign_safe_guard(opts.package_name, opts.default_id); }
+          assign(opts.package_name, opts.default_id, false);
+        }
+      if (opts.assign_current)
+        {
+          if (!opts.force)
+            { assign_safe_guard(opts.package_name, opts.current_id); }
+          assign(opts.package_name, opts.current_id, true);
+        }
+    }
+
+  /* Writing back */
+
+  if (opts.assign_current || opts.assign_default)
+    {
+      if (opts.inplace)
+        { write_back(get_final(), opts.xml_file); }
+      else
+        { print_out(get_final()); }
+    }
+
+  if (opts.restore)
+    { copy_file(opts.restore_file, opts.xml_file); }
+
+  return 0;
+}
 
 namespace {
 
@@ -90,22 +193,6 @@ namespace {
       .append("\" />");
   }
 
-  std::string
-  get_final(bool committed = true)
-  {
-    std::string final_copy;
-    for (std::size_t i = 0; i < orign_XML_SG_.size(); ++i)
-      {
-        final_copy.append
-          (
-            (parsed_XML_SG_[i].is_crrupted() || !committed) ?
-              orign_XML_SG_[i] : ::rewrite_line(parsed_XML_SG_[i])
-          )
-        .append("\n");
-      }
-    return final_copy;
-  }
-
   bool
   is_valid_device_id(const std::string& str)
   {
@@ -149,9 +236,27 @@ parse_file(const std::string& xml_file)
 
   for (std::string line; std::getline(input_stream, line); )
     {
-      parsed_XML_SG_.push_back(::parse_line(line));
-      orign_XML_SG_.push_back(line);
+      ::parsed_XML_SG_.push_back(::parse_line(line));
+      ::orign_XML_SG_.push_back(line);
     }
+
+  input_stream.close();
+}
+
+std::string
+get_final(bool&& committed)
+{
+  std::string final_copy;
+  for (std::size_t i = 0; i < ::orign_XML_SG_.size(); ++i)
+    {
+      final_copy.append
+        (
+          (::parsed_XML_SG_[i].is_crrupted() || !committed) ?
+            ::orign_XML_SG_[i] : ::rewrite_line(::parsed_XML_SG_[i])
+        )
+      .append("\n");
+    }
+  return final_copy;
 }
 
 void
@@ -164,7 +269,9 @@ write_back(const std::string& final_copy, const std::string& xml_file)
       std::cerr << "can't create (user) output file: " << xml_file << std::endl;
       exit(73);
     }
+
   output_stream << final_copy;
+  output_stream.close();
 }
 
 void
@@ -177,7 +284,9 @@ write_back(std::string&& final_copy, const std::string& xml_file)
       std::cerr << "can't create (user) output file: " << xml_file << std::endl;
       exit(73);
     }
+
   output_stream << final_copy;
+  output_stream.close();
 }
 
 void
@@ -195,7 +304,7 @@ print_out(std::string&& final_copy)
 std::string
 query(const std::string& package_name, const bool& which)
 {
-  for (auto const& parsed_line : parsed_XML_SG_)
+  for (auto const& parsed_line : ::parsed_XML_SG_)
     {
       if (parsed_line.package == package_name)
         { return (which ? parsed_line.default_value : parsed_line.value); }
@@ -205,11 +314,7 @@ query(const std::string& package_name, const bool& which)
 }
 
 void
-assign_safe_guard
-  (
-    const std::string& package_name,
-    const std::string& device_id
-  )
+assign_safe_guard(const std::string& package_name, const std::string& device_id)
 {
   if (package_name == "android")
     {
@@ -250,7 +355,7 @@ assign
     const bool&& which
   )
 {
-  for (auto& parsed_line : parsed_XML_SG_)
+  for (auto& parsed_line : ::parsed_XML_SG_)
     {
       if (parsed_line.package == package_name)
         {
@@ -262,7 +367,28 @@ assign
 }
 
 void
-help_information(std::string&& exit_info = "", int&& error_code = 0)
+copy_file(const std::string& src_path, const std::string& dst_path)
+{
+  std::ifstream inpt_stream(src_path, std::ios::binary);
+  std::ofstream oupt_stream(dst_path, std::ios::binary);
+
+  if (inpt_stream.fail() || oupt_stream.fail())
+    {
+      if (inpt_stream.fail())
+        { std::cerr << "cannot open input: " << src_path << std::endl; }
+      if (oupt_stream.fail())
+        { std::cerr << "cannot open output: " << dst_path << std::endl; }
+      exit(73);
+    }
+
+  oupt_stream << inpt_stream.rdbuf();
+
+  inpt_stream.close();
+  oupt_stream.close();
+}
+
+void
+help_information(std::string&& exit_info, int&& error_code)
 {
   if (exit_info.length() > 0)
     { std::cout << exit_info << error_code << std::endl << std::endl; }
@@ -284,19 +410,23 @@ get_options (int& argc, char** (&argv))
         options.assign_default = true;
         options.default_id = optarg;
         break;
-      case 'o':
+      case 'A':
         options.assign_current = true;
         options.current_id = optarg;
         break;
       case 'q':
         options.query_default = true;
         break;
-      case 'r':
+      case 'Q':
         options.query_current = true;
         break;
       case 'b':
         options.backup = true;
         options.backup_file = optarg;
+        break;
+      case 'r':
+        options.restore = true;
+        options.restore_file = optarg;
         break;
       case 'p':
         options.package_name = optarg;
@@ -318,92 +448,4 @@ get_options (int& argc, char** (&argv))
       }
     }
   return options;
-}
-
-int
-main(int argc, char* argv[])
-{
-  Options opts = get_options(argc, argv);
-
-  if (opts.help)
-    { help_information("", 0); }
-
-  /* At least one action needs to be taken */
-  if (!(opts.query_default || opts.query_current || opts.assign_default ||
-        opts.assign_current ||opts.backup))
-    { help_information("invalid option combination: nothing to do: ", 64); }
-
-  /* Only one ID can be queried at a time */
-  if (opts.query_default && opts.query_current)
-    {
-      help_information
-        ("invalid option combination: querying more than one IDs: ", 64);
-    }
-
-  /* Either backup or query can be taken */
-  if (opts.backup && (opts.query_default || opts.query_current))
-    { help_information("invalid option combination: ", 64); }
-
-  /* Action combination is safe here, option combination still needs to check */
-
-  parse_file(opts.xml_file);
-
-  /* Querying */
-  if (opts.query_current || opts.query_default)
-    {
-      if (opts.inplace)
-        { help_information("invalid option combination: ", 64); }
-
-      if (opts.package_name.length() == 0)
-        { help_information("package name not spefified: ", 64); }
-
-      std::string id = query(opts.package_name, opts.query_default);
-
-      if (id.length() != 0)
-        { std::cout << id << std::endl; }
-    }
-
-  /* Backing up */
-  std::string orign_xml_backup;
-  if (opts.backup)
-    { orign_xml_backup = ::get_final(false); }
-
-  /* Assigning */
-  if (opts.assign_current || opts.assign_default)
-    {
-      if (opts.package_name.length() == 0)
-        { help_information("package name not spefified: ", 64); }
-
-      if (opts.assign_default)
-        {
-          if (!opts.force)
-            { assign_safe_guard(opts.package_name, opts.default_id); }
-          assign(opts.package_name, opts.default_id, true);
-        }
-      if (opts.assign_current)
-        {
-          if (!opts.force)
-            { assign_safe_guard(opts.package_name, opts.current_id); }
-          assign(opts.package_name, opts.current_id, false);
-        }
-    }
-
-  /* Writing back */
-
-  if (opts.backup)
-    {
-      if (opts.backup_file.length() == 0)
-        { print_out(orign_xml_backup); }
-      else
-        { write_back(orign_xml_backup, opts.backup_file); }
-    }
-      if (opts.assign_current || opts.assign_default)
-        {
-      if (opts.inplace)
-        { write_back(::get_final(), opts.xml_file); }
-      else
-        { print_out(::get_final()); }
-    }
-
-  return 0;
 }
