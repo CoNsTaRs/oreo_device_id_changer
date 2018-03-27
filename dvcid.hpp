@@ -53,20 +53,22 @@ struct Options
       const std::string& crt_id = "",
       const std::string& xml_pth = "/data/system/users/0/settings_ssaid.xml",
       const std::string& bak_pth = "settings_ssaid.xml.bak",
+      const std::string& rst_pth = "",
       bool to_help = false,
       bool to_as_dft = false,
       bool to_as_crt = false,
       bool to_qr_dft = false,
       bool to_qr_crt = false,
       bool to_backup = false,
+      bool to_restore = false,
       bool do_inplace = false,
       bool do_forcibly = false
     )
     : package_name(pkg_name), default_id(dft_id), current_id(crt_id),
-      xml_file(xml_pth), backup_file(bak_pth), help(to_help),
-      assign_default(to_as_dft), assign_current(to_as_crt),
-      query_default(to_qr_dft), backup(to_backup), query_current(to_qr_crt),
-      inplace(do_inplace), force(do_forcibly)
+      xml_file(xml_pth), backup_file(bak_pth), restore_file(rst_pth),
+      help(to_help), assign_default(to_as_dft), assign_current(to_as_crt),
+      query_default(to_qr_dft), backup(to_backup), restore(to_restore),
+      query_current(to_qr_crt), inplace(do_inplace), force(do_forcibly)
   {}
 
   std::string
@@ -74,7 +76,8 @@ struct Options
     default_id,
     current_id,
     xml_file,
-    backup_file;
+    backup_file,
+    restore_file;
 
   bool
     help,
@@ -83,9 +86,23 @@ struct Options
     query_default,
     query_current,
     backup,
+    restore,
     inplace,
     force;
 };
+
+void parse_file(const std::string& xml_file);
+void write_back(const std::string& final_copy, const std::string& xml_file);
+void write_back(std::string&& final_copy, const std::string& xml_file);
+void print_out(const std::string& final_copy);
+void print_out(std::string&& final_copy);
+std::string query(const std::string& package_name, const bool& which);
+void assign_safe_guard(const std::string& package_name, const std::string& device_id);
+void assign(const std::string& package_name, const std::string& device_id, const bool&& which);
+void copy_file(const std::string& src_path, const std::string& dst_path);
+void help_information(std::string&& exit_info = "", int&& error_code = 0);
+Options get_options (int& argc, char** (&argv));
+std::string get_final(bool&& committed = true);
 
 #define __HELP_INFO__ "\
 dvcid could help you query/modify Device IDs on Android 8 (Oreo)\n\
@@ -104,11 +121,12 @@ ARGUMENTS:\n\
 \n\
 FLAGS:\n\
     -q, --query_current                       Set this flag to query the current ID (May be inherited from the previous Android version)\n\
-    -r, --query_default                       Set this flag to query the default ID (The new ID decided by Oreo)\n\
+    -Q, --query_default                       Set this flag to query the default ID (The new ID decided by Oreo)\n\
     -a, --assign_current    [ID]              To change the current ID\n\
-    -o, --assign_default    [ID]              To change the default ID\n\
+    -A, --assign_default    [ID]              To change the default ID\n\
     -p, --package           [PACKAGE_NAME]    To specify application by package name, THIS FLAG IS NECESSARY\n\
-    -b, --backup            [FILE_PATH]       To make a backup of current setting, output to the file specified\n\
+    -b, --backup            [FILE_PATH]       To make a backup, output to the file specified\n\
+    -r, --restore           [FILE_PATH]       To restore device ID from a backup\n\
     -i, --inplace                             To modify ID directly (Print to stdout if not set, USE THIS OPTION CAREFULLY)\n\
     -y, --force                               To skip security checks\n\
     -f, --file              [FILE_PATH]       To specify which file to be processed\n\
@@ -121,14 +139,17 @@ EXAMPLES:\n\
     To change the current ID of the package 'com.android.example' to '0000000000000000' directly:\n\
     dvcid -i -a 0000000000000000 -p com.android.example\n\
 \n\
-    To query the current ID of the package 'com.android.example' from the file 'settings-ssaid.xml':\n\
-    dvcid -q -p com.android.example -f settings-ssaid.xml\n\
+    To query the current ID of the package 'com.android.example' from the file 'device_id':\n\
+    dvcid -q -p com.android.example -f device_id\n\
 \n\
     To set both ID of the package 'com.android.example' at the same time to '1234567890123456' and '0000000000000000':\n\
-    dvcid -a 1234567890123456 -o 0000000000000000 -p com.android.example\n\
+    dvcid -a 1234567890123456 -A 0000000000000000 -p com.android.example\n\
 \n\
-    To save current settings to file 'ssaid_backup.xml':\n\
+    To save current settings to file 'device_id.bak':\n\
     dvcid -b ssaid_backup.xml\n\
+\n\
+    To restore IDs from a backup file 'device_id.bak'\n\
+    dvcid -r device_id.bak\n\
 \n\
 NOTICE:\n\
     Root privilege is needed.\n\
@@ -144,11 +165,12 @@ NOTICE:\n\
 static const option long_opts_SG_ [] =
 {
   {"help",           no_argument,       nullptr, 'h'},
-  {"assign_default", required_argument, nullptr, 'a'},
-  {"assign_current", required_argument, nullptr, 'o'},
-  {"query_default",  no_argument,       nullptr, 'q'},
-  {"query_current",  no_argument,       nullptr, 'r'},
+  {"assign_current", required_argument, nullptr, 'a'},
+  {"assign_default", required_argument, nullptr, 'A'},
+  {"query_current",  no_argument,       nullptr, 'q'},
+  {"query_default",  no_argument,       nullptr, 'Q'},
   {"backup",         required_argument, nullptr, 'b'},
+  {"restore",        required_argument, nullptr, 'r'},
   {"package",        required_argument, nullptr, 'p'},
   {"file",           required_argument, nullptr, 'f'},
   {"inplace",        no_argument,       nullptr, 'i'},
@@ -156,7 +178,6 @@ static const option long_opts_SG_ [] =
   {nullptr, 0, nullptr, 0}
 };
 
-static const char opts_SG_ [] = "ha:o:qrb:p:f:iy";
+static const char opts_SG_ [] = "ha:o:qrb:r:p:f:iy";
 
 #endif  // DVCID_HPP_
-
