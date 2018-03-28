@@ -100,11 +100,11 @@ std::string query(const std::string& package_name, const bool& which);
 void assign_safe_guard(const std::string& package_name, const std::string& device_id);
 void assign(const std::string& package_name, const std::string& device_id, const bool&& which);
 void copy_file(const std::string& src_path, const std::string& dst_path);
-void help_information(std::string&& exit_info = "", int&& error_code = 0);
+[[noreturn]] void help_information(std::string&& exit_info = "", int&& error_code = 0);
 Options get_options (int& argc, char** (&argv));
 std::string get_final(bool&& committed = true);
 
-#define __HELP_INFO__ "\
+#define ___HELP_INFO___ "\
 dvcid could help you query/modify Device IDs on Android 8 (Oreo)\n\
 \n\
 For further information about dvcid, see the page: https://github.com/CoNsTaRwU/oreo_device_id_changer/blob/master/README.md\n\
@@ -178,6 +178,6 @@ static const option long_opts_SG_ [] =
   {nullptr, 0, nullptr, 0}
 };
 
-static const char opts_SG_ [] = "ha:o:qrb:r:p:f:iy";
+static const char opts_SG_ [] = "ha:A:qQb:r:p:f:iy";
 
 #endif  // DVCID_HPP_
