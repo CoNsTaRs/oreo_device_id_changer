@@ -66,7 +66,7 @@ main(int argc, char* argv[])
       if (opts.package_name.length() == 0)
         { help_information("package name not spefified: ", 64); }
 
-      std::string id = query(opts.package_name, opts.query_default);
+      std::string id = query(opts.package_name, opts.query_current);
 
       if (id.length() != 0)
         { std::cout << id << std::endl; }
@@ -200,7 +200,7 @@ namespace {
       { return false; }
     for (const auto& c : str)
       {
-        if (static_cast<int>(c) < 48 || static_cast<int>(c) > 57)
+        if (c < '0' || c > '9')
           { return false; }
       }
     return true;
@@ -214,8 +214,8 @@ namespace {
     for (auto it = str.cbegin(); it != str.cend(); ++it)
       {
         if (
-              (static_cast<int>(*it) > 57 && static_cast<int>(*it) < 65) ||
-              (static_cast<int>(*it) < 48 || static_cast<int>(*it) > 90)
+              (*it > '9' && *it < 'A') ||
+              (*it < '0' || static_cast<int>(*it) > 'Z')
            )
           { return false; }
       }
@@ -338,7 +338,7 @@ assign_safe_guard(const std::string& package_name, const std::string& device_id)
   else if (!::is_valid_device_id(device_id))
     {
       std::cerr
-        << "the designated ID is NOT a 16-digit number: "
+        << "the designated ID is NOT valid: "
         << device_id
         << std::endl
         << "use --force to perform anyway"
@@ -392,7 +392,7 @@ help_information(std::string&& exit_info, int&& error_code)
 {
   if (exit_info.length() > 0)
     { std::cout << exit_info << error_code << std::endl << std::endl; }
-  std::cout << __HELP_INFO__;
+  std::cout << ___HELP_INFO___;
   exit(error_code);
 }
 
