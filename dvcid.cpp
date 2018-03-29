@@ -200,7 +200,7 @@ namespace {
       { return false; }
     for (const auto& c : str)
       {
-        if (c < '0' || c > '9')
+        if (c < '0' || (c > '9' && c < 'a') || c > 'f')
           { return false; }
       }
     return true;
@@ -215,7 +215,7 @@ namespace {
       {
         if (
               (*it > '9' && *it < 'A') ||
-              (*it < '0' || static_cast<int>(*it) > 'Z')
+              (*it < '0' || static_cast<int>(*it) > 'F')
            )
           { return false; }
       }
